@@ -22,12 +22,12 @@ except:
 q_table = np.zeros([env.observation_space.n, env.action_space.n])
 
 # Define the hyperparameters for Q-learning
-alpha = 0.1    # Learning rate: How much we update the Q-value at each step
-gamma = 0.6    # Discount factor: How much we consider future rewards
+alpha = 0.1   # Learning rate: How much we update the Q-value at each step
+gamma = 0.8   # Discount factor: How much we consider future rewards
 epsilon = 0.1  # Exploration-exploitation trade-off: Probability of choosing a random action
 
 # Define the number of episodes for training
-num_episodes = 500
+num_episodes = 10000
 
 # Create a list to hold total rewards for each episode
 # This helps in analyzing the training progress over time.
@@ -71,6 +71,11 @@ for episode in range(num_episodes):
 
     # Store the total reward for this episode to analyze learning progress
     total_rewards.append(total_reward)
+
+    # Print the average score for the last 20 episodes every 20 episodes
+    if (episode + 1) % 20 == 0:
+        average_last_20 = np.mean(total_rewards[-20:])  # Calculate the average of the last 20 episodes
+        print(f"Episode {episode + 1}/{num_episodes}: Average reward for last 20 episodes = {average_last_20}")
 
 # Training completed
 print("Training completed.")
