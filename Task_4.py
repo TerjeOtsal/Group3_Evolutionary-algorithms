@@ -1,162 +1,160 @@
- # Import necessary libraries 
+# Import necessary libraries
 import gym
 import numpy as np
 import matplotlib.pyplot as plt
-import time  # For controlling the rendering speed
+import seaborn as sns
+import time
 
-# Create the Taxi-v3 environment
-# This environment simulates a grid-based taxi problem where the agent needs to pick up a passenger
-# and drop them off at a specified location while avoiding illegal actions.
-env = gym.make("Taxi-v3")
-
-# Ensure compatibility with different versions of Gym where the reset method returns additional information
-# Depending on the version of Gym, `env.reset()` may return only the state or a tuple (state, info).
-try:
-    state = env.reset()[0]  # For newer gym versions, env.reset() returns a tuple (state, info)
-except:
-    state = env.reset()  # For older gym versions, env.reset() returns just the state
+# Initialize the Taxi-v3 environment with render mode
+env = gym.make("Taxi-v3", render_mode="ansi")
 
 # Initialize the Q-table with zeros
-# Q-table stores the Q-values (expected future rewards) for each state-action pair
-# Shape: (number of states, number of actions)
 q_table = np.zeros([env.observation_space.n, env.action_space.n])
 
-# Define the hyperparameters for Q-learning
-alpha = 0.1   # Learning rate: How much we update the Q-value at each step
-gamma = 0.8   # Discount factor: How much we consider future rewards
-epsilon = 0.1  # Exploration-exploitation trade-off: Probability of choosing a random action
-
-# Define the number of episodes for training
+# Define hyperparameters for Q-learning
+alpha = 0.1
+gamma = 0.8
+epsilon = 1.0
+epsilon_decay = 0.995
+min_epsilon = 0.01
 num_episodes = 10000
 
-# Create a list to hold total rewards for each episode
-# This helps in analyzing the training progress over time.
+# Tracking rewards and metrics for plots
 total_rewards = []
+average_reward_history = []
+epsilon_values = []
+patience_limit = 50  # Number of episodes with no improvement before early stopping
+patience_count = 0   # Counter for episodes without improvement
+early_stopped = False  # Track if early stopping is activated
 
-# Training the Q-learning agent over the specified number of episodes
+# Q-learning training loop with early stopping
 for episode in range(num_episodes):
-    # Reset the environment to the initial state at the start of each episode
     try:
-        state = env.reset()[0]  # For newer gym versions, reset() returns (state, info)
+        state = env.reset()[0]
     except:
-        state = env.reset()  # For older gym versions
-
-    done = False  # This variable keeps track of whether the episode is complete
-    total_reward = 0  # Initialize total reward for the episode
-
-    while not done:
-        # Choose an action based on the epsilon-greedy strategy
-        # With probability `epsilon`, take a random action (exploration)
-        # Otherwise, take the action with the highest Q-value for the current state (exploitation)
-        if np.random.uniform(0, 1) < epsilon:
-            action = env.action_space.sample()  # Explore: choose a random action
-        else:
-            action = np.argmax(q_table[state])  # Exploit: choose the action with max Q-value for the current state
-
-        # Take the chosen action and observe the result
-        try:
-            next_state, reward, done, truncated, _ = env.step(action)  # Updated to handle the truncated variable
-        except:
-            next_state, reward, done, _ = env.step(action)  # For older versions
-
-        # Update the Q-value using the Q-learning formula:
-        # Q(state, action) = Q(state, action) + alpha * (reward + gamma * max(Q(next_state, all_actions)) - Q(state, action))
-        q_table[state, action] = q_table[state, action] + alpha * (reward + gamma * np.max(q_table[next_state]) - q_table[state, action])
-
-        # Accumulate the total reward for this episode
-        total_reward += reward
-
-        # Move to the next state
-        state = next_state
-
-    # Store the total reward for this episode to analyze learning progress
-    total_rewards.append(total_reward)
-
-    # Print the average score for the last 20 episodes every 20 episodes
-    if (episode + 1) % 20 == 0:
-        average_last_20 = np.mean(total_rewards[-20:])  # Calculate the average of the last 20 episodes
-        print(f"Episode {episode + 1}/{num_episodes}: Average reward for last 20 episodes = {average_last_20}")
-
-# Training completed
-print("Training completed.")
-
-# Plot the total rewards over time to visualize the learning progress
-plt.plot(range(num_episodes), total_rewards)
-plt.xlabel("Episode")
-plt.ylabel("Total Reward")
-plt.title("Total Rewards Over Time")
-plt.show()
-
-# Function to evaluate the performance of the trained policy (Q-table)
-# This function calculates the average reward over multiple episodes using the learned policy
-def evaluate_policy(q_table, num_episodes=100):
-    total_rewards = 0
-    for episode in range(num_episodes):
-        try:
-            state = env.reset()[0]  # For newer gym versions
-        except:
-            state = env.reset()  # For older gym versions
-
-        done = False
-        while not done:
-            # Choose the action with the highest Q-value for the current state
-            action = np.argmax(q_table[state])
-            try:
-                next_state, reward, done, truncated, _ = env.step(action)  # Updated to handle the truncated variable
-            except:
-                next_state, reward, done, _ = env.step(action)  # For older versions
-            total_rewards += reward  # Accumulate rewards for each episode
-            state = next_state
-    # Return the average reward across all episodes
-    return total_rewards / num_episodes
-
-# Evaluate the performance of the trained Q-learning policy
-q_learning_performance = evaluate_policy(q_table)
-print(f"Average performance of the trained Q-learning agent: {q_learning_performance}")
-
-# Evaluate a random policy for comparison
-# Here, we create a Q-table with all zeros (no learning), which represents a random policy
-random_performance = evaluate_policy(np.zeros([env.observation_space.n, env.action_space.n]))
-print(f"Average performance of the random policy: {random_performance}")
-
-# Function to show the trained agent working on a single episode
-# This function visually demonstrates the trained agent in the environment
-def show_trained_agent(env, q_table):
-    """
-    Function to show the trained agent working on a single episode.
-    This function renders each step of the trained agent in action.
-    """
-    try:
-        state = env.reset()[0]  # For newer gym versions
-    except:
-        state = env.reset()  # For older gym versions
-
+        state = env.reset()
     done = False
     total_reward = 0
-    env.render()  # Render the initial state of the environment
-    print("Starting demonstration...")
-
-    # Run until the agent successfully drops off the passenger
     while not done:
-        # Choose the action with the highest Q-value for the current state
-        action = np.argmax(q_table[state])
+        if np.random.uniform(0, 1) < epsilon:
+            action = env.action_space.sample()
+        else:
+            action = np.argmax(q_table[state])
         try:
-            next_state, reward, done, truncated, _ = env.step(action)  # Updated to handle the truncated variable
+            next_state, reward, done, truncated, _ = env.step(action)
         except:
-            next_state, reward, done, _ = env.step(action)  # For older versions
-
-        # Accumulate total reward for demonstration
+            next_state, reward, done, _ = env.step(action)
+        q_table[state, action] = q_table[state, action] + alpha * (
+            reward + gamma * np.max(q_table[next_state]) - q_table[state, action]
+        )
         total_reward += reward
-
-        # Render the environment to visualize the agent's actions
-        env.render()
-        time.sleep(0.5)  # Add a delay to make the simulation slower and easier to watch
-
-        # Move to the next state
         state = next_state
 
-    print(f"Total reward: {total_reward}")  # Print the total reward achieved by the agent
-    env.close()  # Close the environment
+    total_rewards.append(total_reward)
+    epsilon_values.append(epsilon)
+    epsilon = max(min_epsilon, epsilon * epsilon_decay)
 
-# Show the trained agent working on a single episode
+    # Check average reward every 10 episodes for early stopping
+    if (episode + 1) % 10 == 0:
+        average_reward = np.mean(total_rewards[-10:])
+        average_reward_history.append(average_reward)
+        print(f"Episode {episode + 1}/{num_episodes}: Average reward for last 10 episodes = {average_reward}")
+
+        # Early stopping check: Stop if no improvement for the last 20 checks
+        if len(average_reward_history) > 1 and average_reward <= max(average_reward_history[:-1]):
+            patience_count += 1
+            if patience_count >= patience_limit:
+                print("Early stopping activated due to lack of improvement.")
+                early_stopped = True
+                break
+        else:
+            patience_count = 0  # Reset patience count if improvement is found
+
+print("Training completed.")
+
+# Use Seaborn directly for enhanced plot style
+sns.set(style="whitegrid", font_scale=1.1)
+
+# Plot 1: Total Rewards Over Time (every 100th episode)
+plt.figure(figsize=(10, 5))
+plt.plot(range(0, len(total_rewards), 100), total_rewards[::100], color='royalblue', linewidth=1.5)
+plt.xlabel("Episode (every 100th)")
+plt.ylabel("Total Reward")
+plt.title("Total Rewards Over Time")
+plt.grid(True)
+plt.show()
+
+# Plot 2: Average Reward for Every 10 Episodes
+plt.figure(figsize=(10, 5))
+plt.plot(range(10, len(average_reward_history) * 10 + 1, 10), average_reward_history, color='tomato', linewidth=2)
+plt.xlabel("Episode")
+plt.ylabel("Average Reward (per 10 episodes)")
+plt.title("Average Reward Over Every 10 Episodes")
+plt.grid(True)
+plt.show()
+
+# Plot 3: Epsilon Decay Over Time
+plt.figure(figsize=(10, 5))
+plt.plot(range(len(epsilon_values)), epsilon_values, color='purple', linewidth=1.5)
+plt.xlabel("Episode")
+plt.ylabel("Epsilon Value")
+plt.title("Epsilon Decay Over Time")
+plt.grid(True)
+plt.show()
+
+# Evaluation function to assess the trained policy
+def evaluate_policy(q_table, num_episodes=100):
+    total_rewards = []
+    for episode in range(num_episodes):
+        try:
+            state = env.reset()[0]
+        except:
+            state = env.reset()
+        done = False
+        episode_reward = 0
+        while not done:
+            action = np.argmax(q_table[state])
+            try:
+                next_state, reward, done, truncated, _ = env.step(action)
+            except:
+                next_state, reward, done, _ = env.step(action)
+            episode_reward += reward
+            state = next_state
+        total_rewards.append(episode_reward)
+    return total_rewards
+
+# Gather rewards for histogram after training
+evaluation_rewards = evaluate_policy(q_table)
+
+# Plot 4: Histogram of Total Rewards per Episode After Training
+plt.figure(figsize=(10, 5))
+plt.hist(evaluation_rewards, bins=20, color='skyblue', edgecolor='black')
+plt.xlabel("Total Reward per Episode")
+plt.ylabel("Frequency")
+plt.title("Histogram of Total Rewards per Episode After Training")
+plt.grid(True)
+plt.show()
+
+# Function to demonstrate the trained agent's actions in a single episode
+def show_trained_agent(env, q_table):
+    try:
+        state = env.reset()[0]
+    except:
+        state = env.reset()
+    done = False
+    total_reward = 0
+    print("Starting demonstration...\n")
+    while not done:
+        action = np.argmax(q_table[state])
+        try:
+            next_state, reward, done, truncated, _ = env.step(action)
+        except:
+            next_state, reward, done, _ = env.step(action)
+        total_reward += reward
+        print(env.render(mode="ansi"))
+        time.sleep(0.5)
+        state = next_state
+    print(f"\nTotal reward: {total_reward}")
+
+# Show the trained agent in action
 show_trained_agent(env, q_table)
