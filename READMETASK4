@@ -1,0 +1,60 @@
+Task Overview
+The Taxi-v3 environment is a grid-based environment with a taxi that must:
+
+Navigate to a passenger’s location.
+Pick up the passenger.
+Drop off the passenger at the destination.
+The goal of the Q-learning agent is to maximize cumulative rewards by learning the best actions for each state in the environment. The trained model (Q-table) is saved after training and can be reloaded to test the agent’s performance.
+
+This part of the project consists of two Python scripts that implement a Q-learning agent for OpenAI's Taxi-v3 environment. The agent is trained to navigate a grid, pick up a passenger, and deliver them to the correct destination. The train_agent.py script trains the agent, and the run_trained_agent.py script demonstrates the agent's performance after training.
+
+Dependencies
+Before running these scripts, ensure you have the following dependencies installed:
+
+Python 3.x
+gym (part of OpenAI Gym, installable via pip install gym)
+numpy
+matplotlib
+seaborn
+
+
+Training the Agent (train_agent.py)
+This script trains a Q-learning agent on the Taxi-v3 environment.
+
+Parameters
+Learning Rate (alpha): Determines the rate at which the agent updates the Q-values for each state-action pair. Set to 0.1.
+Discount Factor (gamma): Determines the importance of future rewards. Set to 0.8.
+Exploration Rate (epsilon): Controls the balance between exploration (random actions) and exploitation (greedy actions). Starts at 1.0 and decays over time.
+Episodes (num_episodes): The maximum number of training episodes.
+Early Stopping: Training stops early if there’s no improvement in performance over 50 intervals (each interval being 10 episodes).
+
+Output
+Q-table: After training, the learned Q-table is saved to trained_q_table.npy for later use.
+Plots: The script generates several plots to visualize the training process:
+Total Rewards Over Time: Shows how the total rewards accumulate across episodes.
+Average Reward Every 10 Episodes: Shows the average performance over each 10-episode interval.
+Epsilon Decay Over Time: Visualizes the exploration rate as it decays during training.
+Histogram of Total Rewards (Post-Training Evaluation): Shows the distribution of rewards per episode for a post-training evaluation.
+
+
+Testing the Trained Agent (run_trained_agent.py)
+
+The run_trained_agent.py script tests the trained agent by loading the saved Q-table and running it in the environment over a set number of episodes.
+
+Example Testing Output
+Starting episode 2/5
+
++---------+
+|R: | : :G|
+| : | : : |
+| : : : : |
+| | : | : |
+|Y| : |B: |
++---------+
+  (West)
+
+...
+Passenger successfully dropped off. Ending episode.
+Total reward for episode 2: 12
+
+some Times the run_trained_model.py can get stuck in a loop where it is not initialized correctly, in that case use control + C in the terminal to stop the script and restart it manually
