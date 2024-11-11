@@ -18,13 +18,13 @@ gamma = 0.8           # Discount factor
 epsilon = 1.0         # Initial exploration rate
 epsilon_decay = 0.995 # Decay rate for epsilon
 min_epsilon = 0.01    # Minimum exploration rate
-num_episodes = 10000  # Maximum episodes for training
+num_episodes = 200000  # Maximum episodes for training
 
 # Tracking rewards and parameters for analysis
 total_rewards = []        # Rewards per episode
 average_reward_history = [] # Average rewards over 10-episode intervals
 epsilon_values = []       # Epsilon values over episodes
-patience_limit = 30       # Early stopping if no improvement over 30 intervals
+patience_limit = 10000       # Early stopping if no improvement over 10000 intervals
 patience_count = 0        # Counter for patience
 early_stopped = False     # Flag for early stopping
 
@@ -201,31 +201,53 @@ plt.title("Histogram of Total Rewards per Episode After Training")
 plt.grid(True)
 plt.show()
 
-# Function to demonstrate the trained agent's actions in a single episode
-def show_trained_agent(q_table):
+def show_trained_agent(q_table, max_steps=20):
     """
     Shows the agent’s behavior in a single episode using the trained Q-table policy.
+    If the agent exceeds max_steps, the environment resets to avoid getting stuck.
     """
     print("Initializing environment for demonstration...")
     # Initialize a new environment instance for demonstration
     demo_env = gym.make("Taxi-v3", render_mode="ansi")
-    try:
-        state = demo_env.reset()[0]
-    except:
-        state = demo_env.reset()
+    
+    def reset_environment():
+        """Resets the environment and returns the initial state."""
+        try:
+            state = demo_env.reset()[0]
+        except:
+            state = demo_env.reset()
+        return state
+
+    # Initial setup
+    state = reset_environment()
     done = False
     total_reward = 0
+    step_count = 0  # Initialize step counter
+    
     print("Starting demonstration...\n")
     while not done:
         action = np.argmax(q_table[state])
+        
+        # Take a step and handle potential errors in step execution
         try:
-            next_state, reward, done, truncated, _ = demo_env.step(action)
-        except:
-            next_state, reward, done, _ = demo_env.step(action)
-        total_reward += reward
-        print(demo_env.render())
-        time.sleep(0.5)
-        state = next_state
+            result = demo_env.step(action)
+            next_state, reward, done = result[:3]
+            total_reward += reward
+            print(demo_env.render())
+            time.sleep(0.5)
+            state = next_state
+            step_count += 1
+        except Exception as e:
+            print(f"Error during demonstration step: {e}")
+            demo_env.close()
+            return
+
+        # Reset the environment if the agent is stuck in a loop
+        if step_count >= max_steps:
+            print(f"Agent exceeded max steps ({max_steps}), resetting environment...")
+            state = reset_environment()
+            total_reward = 0  # Reset reward for the new episode
+            step_count = 0    # Reset step counter
     
     # Close the demonstration environment
     print("Demonstration completed. Closing demonstration environment...")
